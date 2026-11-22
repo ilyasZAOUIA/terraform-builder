@@ -1,0 +1,86 @@
+# Archi Builder - sized for a 1 GB RAM host (e.g. t3.micro).
+#
+# HTTP only (default):   docker compose up -d --build
+# HTTPS with Caddy:      see the "caddy" service at the bottom.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: archi-builder-backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_PATH: /data/archi.db
+    volumes:
+      - archi-data:/data
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: archi-builder-nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      # With Caddy enabled, remove this mapping (Caddy owns 80/443 and proxies to nginx).
+      - "80:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    logging: *default-logging
+
+  # --- HTTPS option -------------------------------------------------------
+  # 1. Point your domain's A record at this host and set DOMAIN / ACME_EMAIL in .env.
+  # 2. Uncomment the "caddy" service and the caddy volumes below.
+  # 3. Remove the "ports" mapping of the nginx service.
+  # 4. docker compose up -d
+  #
+  # caddy:
+  #   image: caddy:2-alpine
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #     - "443:443/udp"
+  #   environment:
+  #     DOMAIN: ${DOMAIN}
+  #     ACME_EMAIL: ${ACME_EMAIL}
+  #   volumes:
+  #     - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy-data:/data
+  #     - caddy-config:/config
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 64M
+  #   logging: *default-logging
+
+volumes:
+  archi-data:
+  # caddy-data:
+  # caddy-config:

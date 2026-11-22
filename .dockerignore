@@ -1,0 +1,12 @@
+# Root build context (used by nginx/Dockerfile)
+.git
+.env
+.env.*
+CLAUDE.md
+.claude
+data
+backend
+caddy
+**/node_modules
+frontend/dist
+**/*.md

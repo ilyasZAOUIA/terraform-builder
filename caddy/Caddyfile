@@ -1,0 +1,11 @@
+# HTTPS front for Archi Builder (optional, see docker-compose.yml).
+# Caddy obtains and renews a Let's Encrypt certificate automatically.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nginx:80
+}
